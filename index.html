@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padlet Cloud Pro - Conexión Google Real</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --sidebar-bg: #fbfbfc;
+            --card-bg: #ffffff;
+            --text-main: #1a1a1a;
+            --text-muted: #65676b;
+            --accent-pink: #e91e63;
+            --accent-blue: #4299e1;
+            --border-color: #e4e6eb;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- PANTALLA DE LOGIN GOOGLE REAL --- */
+        #loginScreen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #13131a;
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .login-box { background: white; padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 400px; width: 100%; }
+        .btn-google { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 12px; border: 1px solid #dadce0; background: white; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 24px; font-size: 0.95rem; }
+        .btn-google:hover { background: #f8f9fa; }
+
+        /* --- SIDEBAR IZQUIERDO --- */
+        aside { width: 280px; background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); padding: 24px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; }
+        .user-profile { background: #f0f2f5; padding: 12px; border-radius: var(--radius-md); display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+        .user-info-text { display: flex; flex-direction: column; }
+        .user-profile .user-name { font-size: 0.95rem; font-weight: 700; }
+        .user-profile .user-email { font-size: 0.75rem; color: var(--text-muted); }
+        .menu-item { display: flex; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); color: var(--text-main); text-decoration: none; font-size: 0.95rem; cursor: pointer; }
+        .menu-item.active { background: #f0f2f5; font-weight: 600; }
+        .btn-logout { background: none; border: none; color: var(--accent-pink); text-align: left; cursor: pointer; margin-top: auto; font-weight: 600; font-size: 0.95rem; }
+
+        /* --- CONTENEDOR PRINCIPAL --- */
+        main { flex-grow: 1; display: flex; flex-direction: column; position: relative; background: #fff; }
+        nav { height: 56px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: #fff; z-index: 10; }
+        .btn-back { background: #f0f2f5; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: none; }
+        .btn-config-wall { background: #f0f2f5; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; display: none; font-size: 0.85rem; }
+
+        /* --- DASHBOARD --- */
+        .view-section { padding: 40px; overflow-y: auto; flex-grow: 1; display: none; }
+        .view-section.active-view { display: block; }
+        .padlet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+        .padlet-card { background: #fff; border-radius: var(--radius-lg); border: 1px solid var(--border-color); overflow: hidden; cursor: pointer; position: relative; }
+        .card-preview { height: 140px; background-size: cover; background-position: center; }
+        .card-preview.create-blank { border: 2px dashed #ccd0d5; background: #f2f3f5; display: flex; align-items: center; justify-content: center; }
+        .card-info { padding: 12px 16px; }
+        .btn-delete-card { position: absolute; right: 12px; top: 12px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; font-size: 1.1rem; color: var(--accent-pink); font-weight: bold; }
+
+        /* --- MURO INTERIOR --- */
+        #innerPadletView { background-size: cover; background-position: center; padding: 30px; position: relative; overflow-y: auto; }
+        .wall-masonry { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+        /* TARJETAS DE COMENTARIOS */
+        .participant-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid var(--border-color); position: relative; }
+        .part-author { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; color: #333; }
+        .part-text { font-size: 0.95rem; color: #1a1a1a; margin-bottom: 8px; white-space: pre-wrap; }
+        .part-media img, .part-media video { width: 100%; max-height: 200px; border-radius: 6px; object-fit: cover; margin-bottom: 8px; }
+        .part-media a { display: inline-block; color: var(--accent-blue); font-size: 0.85rem; text-decoration: none; font-weight: 600; }
+        .card-control-btns { display: flex; gap: 8px; margin-top: 8px; border-top: 1px solid #f0f2f5; padding-top: 8px; }
+        .btn-action-small { background: none; border: none; font-size: 0.8rem; cursor: pointer; color: var(--accent-pink); font-weight: 600; }
+
+        /* BOTÓN FLOTANTE */
+        .btn-floating-publish { position: absolute; bottom: 30px; right: 30px; background: #4ea8de; color: white; border: none; padding: 14px 28px; border-radius: 25px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 50; }
+
+        /* MODALES */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 100; }
+        .modal-card { background: #fff; width: 450px; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .btn-modal-submit { background: #f0f2f5; color: #bcc0c4; border: none; padding: 8px 20px; border-radius: 20px; font-weight: 700; cursor: not-allowed; }
+        .btn-modal-submit.ready { background: #e91e63; color: white; cursor: pointer; }
+        
+        .media-box { border: 1px dashed #ccd0d5; border-radius: 12px; padding: 12px; background: #fafafa; }
+        .media-icons-row { display: flex; gap: 8px; }
+        .media-icon-btn { background: #fff; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; flex: 1; text-align: center; }
+        .modal-textarea { width: 100%; border: none; outline: none; font-size: 1rem; resize: none; min-height: 80px; }
+        .preview-upload-zone { font-size: 0.8rem; color: var(--accent-blue); margin-top: 4px; font-weight: 600; }
+        .input-url-flat { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; outline: none; }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // CONFIGURACIÓN DE TU PROYECTO FIREBASE
+        // (Debes crear un proyecto en console.firebase.google.com, activar Google Auth y Realtime Database)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUser = null;
+        let activePadletId = null;
+        let globalPadlets = {};
+        let attachedMedia = { type: null, value: null };
+
+        // --- MANEJO DE SESIÓN REAL CON GOOGLE ---
+        window.loginWithGoogle = function() {
+            signInWithPopup(auth, provider)
+                .then((result) => { console.log("Login Exitoso"); })
+                .catch((error) => { alert("Error al conectar con Google: " + error.message); });
+        };
+
+        window.logout = function() {
+            signOut(auth).then(() => { location.reload(); });
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('sideUserName').innerText = user.displayName;
+                document.getElementById('sideUserEmail').innerText = user.email;
+                if(user.photoURL) document.getElementById('userProfileImg').src = user.photoURL;
+                document.getElementById('topUserTag').innerText = `👤 ${user.displayName}`;
+                
+                // Escuchar cambios en la base de datos en tiempo real
+                initDatabaseListener();
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+            }
+        });
+
+        // --- ENLACE DE BASE DE DATOS EN TIEMPO REAL ---
+        function initDatabaseListener() {
+            const padletsRef = ref(db, 'padlets');
+            onValue(padletsRef, (snapshot) => {
+                globalPadlets = snapshot.val() || {};
+                renderDashboard();
+                if(activePadletId) {
+                    renderPosts();
+                }
+            });
+        }
+
+        // --- FLUJO DEL DASHBOARD ---
+        function renderDashboard() {
+            const grid = document.getElementById('padletGrid');
+            while (grid.children.length > 1) { grid.removeChild(grid.lastChild); }
+
+            Object.keys(globalPadlets).forEach(id => {
+                const p = globalPadlets[id];
+                const card = document.createElement('div');
+                card.classList.add('padlet-card');
+                card.onclick = () => openPadlet(id);
+                
+                // CONDICIONAL DE BORRADO DE PADLET: Solo el creador ve la equis para destruirlo por completo
+                let deleteBtnHTML = '';
+                if(p.creatorUid === currentUser.uid) {
+                    deleteBtnHTML = `<button class="btn-delete-card" onclick="event.stopPropagation(); deletePadlet('${id}')">×</button>`;
+                }
+
+                card.innerHTML = `
+                    <div class="card-preview" style="background-image: url('${p.bg}');"></div>
+                    <div class="card-info">
+                        ${deleteBtnHTML}
+                        <div class="card-title">${p.title}</div>
+                        <div class="card-subtitle">Por: ${p.creatorName}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.createNewPadlet = function() {
+            const title = prompt("Título del Padlet:");
+            if (!title || title.trim() === "") return;
+            
+            const padletsRef = ref(db, 'padlets');
+            const newPadletRef = push(padletsRef);
+            
+            set(newPadletRef, {
+                title: title.toUpperCase(),
+                bg: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+                creatorUid: currentUser.uid,
+                creatorName: currentUser.displayName,
+                posts: {}
+            });
+        };
+
+        window.deletePadlet = function(id) {
+            if(globalPadlets[id].creatorUid !== currentUser.uid) {
+                alert("No tienes permiso. Solo el dueño del padlet puede eliminarlo.");
+                return;
+            }
+            if(confirm("¿Eliminar este Padlet por completo y todas sus respuestas?")) {
+                remove(ref(db, `padlets/${id}`));
+                if(activePadletId === id) goHome();
+            }
+        };
+
+        // --- DENTRO DEL MURO INTERACTIVO ---
+        window.openPadlet = function(id) {
+            activePadletId = id;
+            document.getElementById('dashboardView').classList.remove('active-view');
+            const innerView = document.getElementById('innerPadletView');
+            innerView.classList.add('active-view');
+            
+            innerView.style.backgroundImage = `url('${globalPadlets[id].bg}')`;
+            document.getElementById('btnBack').style.display = "inline-block";
+            document.getElementById('btnConfigWall').style.display = "inline-block";
+            document.getElementById('navLocation').innerText = `Inicio / ${globalPadlets[id].title}`;
+            renderPosts();
+        };
+
+        window.goHome = function() {
+            activePadletId = null;
+            document.getElementById('innerPadletView').classList.remove('active-view');
+            document.getElementById('dashboardView').classList.add('active-view');
+            document.getElementById('btnBack').style.display = "none";
+            document.getElementById('btnConfigWall').style.display = "none";
+            document.getElementById('navLocation').innerText = "Inicio / Hecho por mí";
+        };
+
+        // --- SUBIR INFORMACIÓN Y APORTES MULTIMEDIA REALES ---
+        window.submitPost = function() {
+            const txt = document.getElementById('postTextArea').value.trim();
+            if(!txt && !attachedMedia.value) return;
+
+            const postsRef = ref(db, `padlets/${activePadletId}/posts`);
+            const newPostRef = push(postsRef);
+
+            set(newPostRef, {
+                authorUid: currentUser.uid,
+                authorName: currentUser.displayName,
+                text: txt,
+                media: attachedMedia
+            }).then(() => {
+                closePublishModal();
+            });
+        };
+
+        function renderPosts() {
+            const masonry = document.getElementById('wallMasonry');
+            masonry.innerHTML = '';
+            
+            const currentPadlet = globalPadlets[activePadletId];
+            if (!currentPadlet || !currentPadlet.posts) return;
+
+            Object.keys(currentPadlet.posts).forEach(postId => {
+                const post = currentPadlet.posts[postId];
+                const card = document.createElement('div');
+                card.classList.add('participant-card');
+
+                let mediaHTML = '';
+                if(post.media && post.media.value) {
+                    if(post.media.type === 'img') mediaHTML = `<div class="part-media"><img src="${post.media.value}"></div>`;
+                    if(post.media.type === 'video') mediaHTML = `<div class="part-media"><video src="${post.media.value}" controls></video></div>`;
+                    if(post.media.type === 'link') mediaHTML = `<div class="part-media"><a href="${post.media.value}" target="_blank">🔗 Enlace Adjunto</a></div>`;
+                }
+
+                // CONTROL CRUCIAL: Solo el dueño de la nota puede ver el botón "Eliminar"
+                let controlsHTML = '';
+                if(post.authorUid === currentUser.uid) {
+                    controlsHTML = `
+                        <div class="card-control-btns">
+                            <button class="btn-action-small" onclick="deletePost('${postId}')">Eliminar</button>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="part-author">${post.authorName} ${post.authorUid === currentUser.uid ? '(Tú)' : ''}</div>
+                    <div class="part-text">${post.text}</div>
+                    ${mediaHTML}
+                    ${controlsHTML}
+                `;
+                masonry.appendChild(card);
+            });
+        }
+
+        window.deletePost = function(postId) {
+            const post = globalPadlets[activePadletId].posts[postId];
+            if(post.authorUid !== currentUser.uid) {
+                alert("Acción prohibida: No puedes eliminar aportaciones de tus compañeros.");
+                return;
+            }
+            if(confirm("¿Eliminar tu publicación?")) {
+                remove(ref(db, `padlets/${activePadletId}/posts/${postId}`));
+            }
+        };
+
+        // --- PERSONALIZAR EL FONDO POR URL O ARCHIVO ---
+        window.saveWebBackground = function() {
+            const url = document.getElementById('bgWebUrlInput').value.trim();
+            if(!url) return alert("Ingresa un enlace.");
+            
+            update(ref(db, `padlets/${activePadletId}`), { bg: url });
+            document.getElementById('innerPadletView').style.backgroundImage = `url('${url}')`;
+            closeBackgroundModal();
+        };
+
+        window.uploadLocalBackground = function(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                update(ref(db, `padlets/${activePadletId}`), { bg: e.target.result });
+                document.getElementById('innerPadletView').style.backgroundImage = `url('${e.target.result}')`;
+                closeBackgroundModal();
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // --- INTERFAZ AUXILIAR ---
+        window.openPublishModal = function() { document.getElementById('publishModal').style.display = 'flex'; }
+        window.closePublishModal = function() {
+            document.getElementById('publishModal').style.display = 'none';
+            document.getElementById('postTextArea').value = '';
+            attachedMedia = { type: null, value: null };
+            document.getElementById('mediaPreviewStatus').innerText = "Ningún archivo adjunto";
+            validateInput();
+        }
+        window.openBackgroundModal = function() { document.getElementById('backgroundModal').style.display = 'flex'; }
+        window.closeBackgroundModal = function() { document.getElementById('backgroundModal').style.display = 'none'; }
+
+        window.triggerFileInput = function(type) {
+            if(type === 'img') document.getElementById('hiddenImgInput').click();
+            if(type === 'video') document.getElementById('hiddenVideoInput').click();
+        }
+        window.triggerLinkInput = function() {
+            let url = prompt("Ingresa el link:");
+            if(!url) return;
+            attachedMedia = { type: 'link', value: url };
+            document.getElementById('mediaPreviewStatus').innerText = `🔗 Link añadido.`;
+            validateInput();
+        }
+        window.handleFileSelect = function(input, type) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                attachedMedia = { type: type, value: e.target.result };
+                document.getElementById('mediaPreviewStatus').innerText = `✅ Archivo cargado.`;
+                validateInput();
+            };
+            reader.readAsDataURL(file);
+        }
+        window.validateInput = function() {
+            const txt = document.getElementById('postTextArea').value.trim();
+            const btn = document.getElementById('btnModalSubmit');
+            if(txt.length > 0 || attachedMedia.value !== null) {
+                btn.classList.add('ready'); btn.removeAttribute('disabled');
+            } else {
+                btn.classList.remove('ready'); btn.setAttribute('disabled', 'true');
+            }
+        }
+    </script>
+</body>
+<body>
+
+    <div id="loginScreen">
+        <div class="login-box">
+            <h2 style="margin-bottom:8px;">Ingreso Oficial con Google</h2>
+            <p style="color:var(--text-muted); font-size:0.9rem;">Conéctate para colaborar en línea con tu salón de clase.</p>
+            <button class="btn-google" onclick="loginWithGoogle()">
+                <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/web-24dp/logo_googleg_color_24dp.png" width="18" alt="Google">
+                Iniciar sesión con Google
+            </button>
+        </div>
+    </div>
+
+    <aside>
+        <div class="user-profile">
+            <img src="https://via.placeholder.com/36" class="user-avatar" id="userProfileImg">
+            <div class="user-info-text">
+                <div class="user-name" id="sideUserName">Cargando...</div>
+                <div class="user-email" id="sideUserEmail">...</div>
+            </div>
+        </div>
+        <div class="menu-item active" onclick="goHome()">✨ Hecho por mí</div>
+        <button class="btn-logout" onclick="logout()">🚪 Cerrar Sesión</button>
+    </aside>
+
+    <main>
+        <nav>
+            <div class="nav-links">
+                <button class="btn-back" id="btnBack" onclick="goHome()">← Volver</button>
+                <span id="navLocation">Inicio / Hecho por mí</span>
+            </div>
+            <div>
+                <button class="btn-config-wall" id="btnConfigWall" onclick="openBackgroundModal()">⚙️ Configurar Muro</button>
+                <span style="font-weight: 600; font-size:0.9rem; margin-left: 12px;" id="topUserTag">👤 Conectando...</span>
+            </div>
+        </nav>
+
+        <div id="dashboardView" class="view-section active-view">
+            <h2 class="section-title">Hecho por mí</h2>
+            <div class="padlet-grid" id="padletGrid">
+                <div class="padlet-card" style="background:transparent; border:none;" onclick="createNewPadlet()">
+                    <div class="card-preview create-blank"><span style="font-size:2.5rem; color:#8e8e9f;">+</span></div>
+                    <div style="text-align:center; margin-top:12px; color:var(--text-muted); font-size:0.9rem;">Crear un padlet</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="innerPadletView" class="view-section">
+            <div class="wall-masonry" id="wallMasonry"></div>
+            <button class="btn-floating-publish" onclick="openPublishModal()">+ Publicar</button>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="publishModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Añadir al mural</h3>
+                <button onclick="closePublishModal()" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">×</button>
+            </div>
+            <div class="media-box">
+                <div class="media-icons-row">
+                    <div class="media-icon-btn" title="Subir Imagen" onclick="triggerFileInput('img')">🖼️</div>
+                    <div class="media-icon-btn" title="Subir Video" onclick="triggerFileInput('video')">🎥</div>
+                    <div class="media-icon-btn" title="Adjuntar Enlace" onclick="triggerLinkInput()">🔗</div>
+                </div>
+                <input type="file" id="hiddenImgInput" accept="image/*" style="display:none;" onchange="handleFileSelect(this, 'img')">
+                <input type="file" id="hiddenVideoInput" accept="video/*" style="display:none;" onchange="handleFileSelect(this, 'video')">
+                <div class="preview-upload-zone" id="mediaPreviewStatus">Ningún archivo adjunto</div>
+            </div>
+            <textarea class="modal-textarea" id="postTextArea" placeholder="Escribe tu respuesta aquí..." oninput="validateInput()"></textarea>
+            <button class="btn-modal-submit" id="btnModalSubmit" onclick="submitPost()">Publicar</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="backgroundModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Fondo del Padlet</h3>
+                <button onclick="closeBackgroundModal()" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">×</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="font-weight:600; font-size:0.85rem;">Opción 1: Subir imagen local</label>
+                <input type="file" accept="image/*" onchange="uploadLocalBackground(this)">
+            </div>
+            <div style="text-align:center; color:var(--text-muted); font-size:0.85rem; font-weight:bold; margin: 4px 0;">O</div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                <label style="font-weight:600; font-size:0.85rem;">Opción 2: URL de internet</label>
+                <input type="text" class="input-url-flat" id="bgWebUrlInput" placeholder="https://ejemplo.com/foto.jpg">
+                <button class="btn-modal-submit ready" style="border-radius:8px; padding:10px;" onclick="saveWebBackground()">Guardar Fondo</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
